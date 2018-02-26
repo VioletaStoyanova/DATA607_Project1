@@ -1,0 +1,89 @@
+---
+title: "Data607_Project1"
+author: "Violeta Stoyanova"
+date: "2/21/2018"
+output: html_document
+---
+
+
+
+```{r}
+#In this assignment we are asked to transform the provided data into a data frame with Player's Name, Player's State, Total Number of Points, Player's Pre Rating and Average Pre-Chess Rating of Opponets. 
+#First we read the table, and names of columns are assigned accoring to the txt file. Since each line ends with |, the character is used as a delimeter. The first 4 rows of the table are ignored since they do not have any data. 
+library(tidyverse)
+chess_fields <-c("Number", "Name", "Points", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "EOL")
+tournament <- read.table("./tournamentinfo.txt", 
+                         header = FALSE, skip = 4, sep = "|", 
+                         fill = TRUE, stringsAsFactors = FALSE, 
+                         col.names = chess_fields)
+#The rows that are used to separate are removed as well as the EOL column since they are not needed for the purposes of this assignment. 
+tournament <-subset(tournament, !Name == "", 
+                     select = c(Number:R7))
+tournament
+library(stringr)
+for (i in 1:length(tournament)) {
+  tournament[, i] <- str_trim(tournament[, i])
+}
+```
+```{r}
+#Now each column is trimmed to remove all the extra spaces and single row is created for each player. Also, each player's pre rating and state are taken from underneath their name and put into a separate column. 
+for (i in 1:nrow(tournament)) {
+  tournament$State[i] <- tournament$Number[i + 1]
+  tournament$Player[i] <- str_trim(str_extract
+                                   (tournament$Name[i + 1], 
+                                               "[[:blank:]]{1}[[:digit:]]{3,4}"))
+}
+tournament <-subset(tournament, !is.na(Player))
+tournament
+```
+```{r}
+#Each round in which a player played a match is represented by the result of the match, followed by a space and then the opponent’s number. 
+for (i in 4:10) {
+  tournament[, i] <-str_trim(str_extract(tournament[, i], 
+                                          "[[:space:]]+[[:digit:]]{1,2}"))
+}
+
+```
+
+```{r}
+#Now the ratings are found by each player faced.
+for (i in 1:nrow(tournament)) {
+  for(j in 4:10) {
+    tournament[i,j] <- tournament[tournament$Number == tournament[i,j],12][1]
+    
+  }
+}
+```
+
+```{r}
+#The Opponents Rating's are calculated by pulling in their pre-ratings and the total number of ratings or the means. Before that the total number of points and pre-ratings are converted into numbers. 
+for (i in 4:10) {
+  tournament[, i] <- as.numeric(tournament[, i])
+}
+
+tournament$Player <- as.numeric(tournament$Player)
+tournament$Points <- as.numeric(tournament$Points)
+tournament$Opponent <- round(rowMeans(tournament[, c(4:10)], 
+                                      na.rm = TRUE), 1)
+
+
+```
+
+```{r}
+#The new columns are saved into a new data frame and the data frame is exported as a csv file. Some descriptive statistics are performed for exploratory purposes. 
+tournamentData<-write.table(tournament, file = "tournamentData.csv",
+            row.names=FALSE, na="",
+            col.names=TRUE, sep=",")
+tdata<-read.csv("tournamentData.csv", header=TRUE)
+tdata
+mean(tdata$Player)
+mean(tdata$Opponent)
+```
+
+```{r}
+#Some data visualization follows where we can see on this scatter plot the positive correlation between Pre rating of the players and Average pre-chess ratings of the opponents. 
+plot(tdata$`Player`,tdata$`Opponent`)
+ 
+```
+
+
